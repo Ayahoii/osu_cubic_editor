@@ -4,7 +4,7 @@
 // ================================================
 
 const TPS = 20;          // Minecraft ticks per second
-const FORMAT_VERSION = '1.0'; // Versão do formato de mapa exportado
+const FORMAT_VERSION = '1.0'; // Exported map format version
 const GRID_MIN = -6;
 const GRID_MAX = 6;
 const GRID_SIZE = GRID_MAX - GRID_MIN + 1; // 13
@@ -59,7 +59,7 @@ function pushUndo() {
 }
 
 function undoLast() {
-  if (!S.project || S.historyPtr < 0) { toast('Nada para desfazer', '#888'); return; }
+  if (!S.project || S.historyPtr < 0) { toast('Nothing to undo', '#888'); return; }
   const snap = S.history[S.historyPtr];
   S.historyPtr--;
   // Restore snapshot
@@ -74,7 +74,7 @@ function undoLast() {
   );
   updateNotePanel();
   updateBadge();
-  toast('Desfeito', '#aaa');
+  toast('Undone', '#aaa');
 }
 
 // -------- Helpers --------
@@ -114,7 +114,7 @@ function loadProjects() {
 }
 function saveProjects() {
   try { localStorage.setItem('osu_cubic_editor_v2', JSON.stringify(S.projects)); }
-  catch(e) { toast('Erro ao salvar: ' + e.message, '#f44'); }
+  catch(e) { toast('Save error: ' + e.message, '#f44'); }
 }
 
 // -------- Project schema --------
@@ -122,7 +122,7 @@ function mkProject(d = {}) {
   return {
     id:             d.id || String(Date.now()),
     format_version: d.format_version || FORMAT_VERSION,
-    name:           d.name         || 'Nova Música',
+    name:           d.name         || 'New Song',
     artist:       d.artist       || '',
     icon:         d.icon         || '',
     audioMusicId: d.audioMusicId || '',
@@ -156,7 +156,7 @@ function renderProjectList() {
   const list = document.getElementById('project-list');
   const ids = Object.keys(S.projects).sort((a,b) => (S.projects[b].createdAt||0) - (S.projects[a].createdAt||0));
   if (!ids.length) {
-    list.innerHTML = '<div class="list-empty">Nenhum projeto ainda.<br>Clique em "+ Novo Projeto" para começar.</div>';
+    list.innerHTML = '<div class="list-empty">No projects yet.<br>Click "+ New Project" to get started.</div>';
     return;
   }
   list.innerHTML = '';
@@ -171,10 +171,10 @@ function renderProjectList() {
       ${iconHtml}
       <div style="min-width:0;flex:1">
         <div class="pc-name">${esc(p.name)}</div>
-        <div class="pc-meta">${esc(p.artist)} — ${p.duration}s — ${countNotes(p)} notas</div>
+        <div class="pc-meta">${esc(p.artist)} — ${p.duration}s — ${countNotes(p)} notes</div>
       </div>
       <div class="pc-acts">
-        <button class="btn btn-sm btn-accent" onclick="openProject('${id}')">Editar</button>
+        <button class="btn btn-sm btn-accent" onclick="openProject('${id}')">Edit</button>
         <button class="btn btn-sm btn-danger"  onclick="delProject('${id}')">✕</button>
       </div>`;
     list.appendChild(el);
@@ -189,7 +189,7 @@ function closeNewProjectModal() {
 }
 function handleCreateProject() {
   const name = document.getElementById('np-name').value.trim();
-  if (!name) { toast('Nome é obrigatório', '#f44'); return; }
+  if (!name) { toast('Name is required', '#f44'); return; }
   const p = mkProject({
     name,
     artist:         document.getElementById('np-artist').value.trim(),
@@ -205,7 +205,7 @@ function handleCreateProject() {
   openProject(p.id);
 }
 function delProject(id) {
-  if (!confirm(`Deletar "${S.projects[id]?.name}"?`)) return;
+  if (!confirm(`Delete "${S.projects[id]?.name}"?`)) return;
   delete S.projects[id];
   saveProjects();
   renderProjectList();
@@ -227,7 +227,7 @@ function openProject(id) {
   showScreen('editor');
   document.getElementById('header-project-name').textContent = p.name + (p.artist ? ' — ' + p.artist : '');
   document.getElementById('difficulty-select').value = S.diff;
-  document.getElementById('audio-status').textContent = 'Sem áudio — clique em 🎵 Áudio para carregar';
+  document.getElementById('audio-status').textContent = 'No audio — click 🎵 Audio to load';
   buildGrid();
   updateBadge();
   updateNotePanel();  updateMetaPanel();
@@ -289,15 +289,15 @@ function applyMetaProps() {
   document.getElementById('header-project-name').textContent =
     p.name + (p.artist ? ' \u2014 ' + p.artist : '');
   saveProject();
-  toast('Metadados salvos!', '#4caf50');
+  toast('Metadata saved!', '#4caf50');
 }
 
 function setDurationFromAudio() {
-  if (!S.buf) { toast('Carregue um \u00e1udio primeiro', '#f5a623'); return; }
+  if (!S.buf) { toast('Load an audio file first', '#f5a623'); return; }
   const d = Math.ceil(S.buf.duration);
   document.getElementById('meta-duration').value = d;
   if (S.project) S.project.duration = d;
-  toast(`Dura\u00e7\u00e3o definida: ${d}s`, '#4fc3f7');
+  toast(`Duration set: ${d}s`, '#4fc3f7');
 }
 
 function loadIconImage(file) {
@@ -307,7 +307,7 @@ function loadIconImage(file) {
     S.project.iconDataUrl = ev.target.result;
     updateMetaPanel();
     updateMusicIconHeader();
-    toast('Imagem carregada!', '#4caf50');
+    toast('Image loaded!', '#4caf50');
   };
   rd.readAsDataURL(file);
 }
@@ -403,7 +403,7 @@ function onGridCellClick(x, z) {
   flashCell(x, z);
   updateBadge();
   selectNote(tick, map[tick].length - 1);
-  toast(`Nota adicionada — tick ${tick}  (${(tick/TPS).toFixed(2)}s)`, '#4fc3f7');
+  toast(`Note added — tick ${tick}  (${(tick/TPS).toFixed(2)}s)`, '#4fc3f7');
 }
 
 function updateGridVisuals() {
@@ -507,17 +507,17 @@ function deleteSelectedNote() {
   }
   clearSelection();
   updateBadge();
-  toast(count > 1 ? `${count} notas deletadas` : 'Nota deletada', '#f44');
+  toast(count > 1 ? `${count} notes deleted` : 'Note deleted', '#f44');
 }
 
 function clearDiffNotes() {
   if (!S.project) return;
-  if (!confirm(`Deletar TODAS as notas de "${S.diff}"?\nVocê pode desfazer com Ctrl+Z.`)) return;
+  if (!confirm(`Delete ALL notes from "${S.diff}"?\nYou can undo with Ctrl+Z.`)) return;
   pushUndo();
   S.project.maps[S.diff] = {};
   clearSelection();
   updateBadge();
-  toast(`Todas as notas de ${S.diff} deletadas`, '#f44');
+  toast(`All notes from ${S.diff} deleted`, '#f44');
 }
 
 function applyNoteProps() {
@@ -532,7 +532,7 @@ function applyNoteProps() {
     el.dataset.mixed = '';
     for (const note of notes) note[f] = el.value;
   }
-  toast(notes.length > 1 ? `${notes.length} notas atualizadas` : 'Propriedades aplicadas', '#4caf50');
+  toast(notes.length > 1 ? `${notes.length} notes updated` : 'Properties applied', '#4caf50');
 }
 
 function updateNotePanel() {
@@ -540,13 +540,13 @@ function updateNotePanel() {
   const empty = document.getElementById('note-props-empty');
   const form  = document.getElementById('note-props-form');
   if (!S.selection.length) {
-    if (panelTitle) panelTitle.textContent = 'Nota Selecionada';
+    if (panelTitle) panelTitle.textContent = 'Selected Note';
     empty.classList.remove('hidden'); form.classList.add('hidden'); return;
   }
   const map = getMap();
   const pairs = S.selection.map(s => ({ s, note: map[s.tick]?.[s.idx] })).filter(p => p.note);
   if (!pairs.length) { clearSelection(); return; }
-  if (panelTitle) panelTitle.textContent = pairs.length === 1 ? 'Nota Selecionada' : `${pairs.length} Notas`;
+  if (panelTitle) panelTitle.textContent = pairs.length === 1 ? 'Selected Note' : `${pairs.length} Notes`;
   empty.classList.add('hidden');
   form.classList.remove('hidden');
   if (pairs.length === 1) {
@@ -561,7 +561,7 @@ function updateNotePanel() {
       el.dataset.mixed = '';
     }
   } else {
-    document.getElementById('prop-tick').value = `${pairs.length} notas`;
+    document.getElementById('prop-tick').value = `${pairs.length} notes`;
     document.getElementById('prop-x').value    = '';
     document.getElementById('prop-z').value    = '';
     for (const f of ['type','sound','event','lyric']) {
@@ -579,7 +579,7 @@ function updateBadge() {
   if (!S.project) return;
   const map = getMap();
   let c = 0; for (const ns of Object.values(map)) c += ns.length;
-  document.getElementById('note-count-badge').textContent = c + ' notas';
+  document.getElementById('note-count-badge').textContent = c + ' notes';
   document.getElementById('timeline-diff-label').textContent = S.diff.toUpperCase();
 }
 
@@ -592,9 +592,9 @@ async function restoreAudio(p) {
     const ab  = await res.arrayBuffer();
     S.buf = await S.ctx.decodeAudioData(ab);
     document.getElementById('audio-status').textContent =
-      `\ud83c\udfb5 ${p.audioFileName || 'áudio salvo'}  (${fmt(S.buf.duration)})`;
+      `\ud83c\udfb5 ${p.audioFileName || 'saved audio'}  (${fmt(S.buf.duration)})`;
   } catch(e) {
-    document.getElementById('audio-status').textContent = 'Erro ao restaurar áudio — recarregue o arquivo';
+    document.getElementById('audio-status').textContent = 'Error restoring audio — please reload the file';
     console.warn('restoreAudio:', e);
   }
 }
@@ -617,12 +617,12 @@ async function loadAudio(file) {
       `🎵 ${file.name}  (${fmt(S.buf.duration)})`;
     if (!S.project.duration || S.project.duration <= 5)
       S.project.duration = Math.ceil(S.buf.duration);
-    toast(`Áudio carregado: ${file.name}`, '#4caf50');
-  } catch(e) { toast('Erro ao carregar áudio: ' + e.message, '#f44'); }
+    toast(`Audio loaded: ${file.name}`, '#4caf50');
+  } catch(e) { toast('Error loading audio: ' + e.message, '#f44'); }
 }
 
 function playAudio(offset) {
-  if (!S.buf) { toast('Carregue um áudio primeiro', '#f5a623'); return; }
+  if (!S.buf) { toast('Load an audio file first', '#f5a623'); return; }
   stopAudio(true);
   if (S.ctx.state === 'suspended') S.ctx.resume();
   const off = Math.max(0, Math.min(offset ?? S.currentTime, S.buf.duration - 0.01));
@@ -647,7 +647,7 @@ function stopAudio(keepPos = false) {
 }
 
 function togglePlay() {
-  if (!S.buf) { toast('Carregue um áudio primeiro', '#f5a623'); return; }
+  if (!S.buf) { toast('Load an audio file first', '#f5a623'); return; }
   if (S.playing) { S.currentTime = now_audio(); stopAudio(true); }
   else playAudio(S.currentTime);
 }
@@ -924,7 +924,7 @@ function onTimelineMouseUp(e) {
         S.selection = [{ tick: newTick, idx: newIdx }];
         updateNotePanel();
         updateBadge();
-        toast(`Nota movida → tick ${newTick}  (${(newTick/TPS).toFixed(2)}s)`, '#4fc3f7');
+        toast(`Note moved → tick ${newTick}  (${(newTick/TPS).toFixed(2)}s)`, '#4fc3f7');
       }
     } else if (Math.abs(mx - S.tlDrag.startMx) < 4) {
       // No movement: it was a click
@@ -955,7 +955,7 @@ function onTimelineMouseUp(e) {
         if (e.shiftKey) S.selection = [...S.selection, ...newSel];
         else S.selection = newSel;
         updateNotePanel();
-        toast(`${S.selection.length} nota(s) selecionada(s)`, '#4fc3f7');
+        toast(`${S.selection.length} note(s) selected`, '#4fc3f7');
       }
     } else {
       // Tiny drag = click: seek
@@ -1001,9 +1001,9 @@ function startAnim() {
 function importJS(text) {
   try {
     const obj = parseJSMap(text);
-    if (!S.project) throw new Error('Abra um projeto antes de importar');
+    if (!S.project) throw new Error('Open a project before importing');
     if (obj.format_version && obj.format_version !== FORMAT_VERSION)
-      toast(`⚠️ format_version do arquivo (${obj.format_version}) difere da versão atual (${FORMAT_VERSION}). Pode haver incompatibilidade.`, '#ff9800', 6000);
+      toast(`⚠️ File format_version (${obj.format_version}) differs from current version (${FORMAT_VERSION}). There may be incompatibilities.`, '#ff9800', 6000);
 
     if (obj.name)         S.project.name         = obj.name;
     if (obj.artist)       S.project.artist       = obj.artist;
@@ -1030,9 +1030,9 @@ function importJS(text) {
       S.project.name + (S.project.artist ? ' — ' + S.project.artist : '');
     deselectNote();
     updateBadge();
-    toast(`Importado: ${obj.name}`, '#4caf50');
+    toast(`Imported: ${obj.name}`, '#4caf50');
   } catch(e) {
-    toast('Erro ao importar: ' + e.message, '#f44');
+    toast('Import error: ' + e.message, '#f44');
     console.error(e);
   }
 }
@@ -1045,7 +1045,7 @@ function parseJSMap(text) {
     .replace(/^export\s+const\s+\w+\s*=\s*/, '')
     .replace(/;?\s*$/, '');
   const obj = (new Function('"use strict"; return (' + src + ')'))();
-  if (!obj || typeof obj !== 'object') throw new Error('Objeto inválido');
+  if (!obj || typeof obj !== 'object') throw new Error('Invalid object');
   return obj;
 }
 
@@ -1053,9 +1053,9 @@ function importJSAsNewProject(text) {
   try {
     const obj = parseJSMap(text);
     if (obj.format_version && obj.format_version !== FORMAT_VERSION)
-      toast(`⚠️ format_version do arquivo (${obj.format_version}) difere da versão atual (${FORMAT_VERSION}). Pode haver incompatibilidade.`, '#ff9800', 6000);
+      toast(`⚠️ File format_version (${obj.format_version}) differs from current version (${FORMAT_VERSION}). There may be incompatibilities.`, '#ff9800', 6000);
     const p = mkProject({
-      name:         obj.name         || 'Importado',
+      name:         obj.name         || 'Imported',
       format_version: obj.format_version || FORMAT_VERSION,
       artist:       obj.artist       || '',
       icon:         obj.icon         || '',
@@ -1076,9 +1076,9 @@ function importJSAsNewProject(text) {
     S.projects[p.id] = p;
     saveProjects();
     renderProjectList();
-    toast(`Projeto importado: ${p.name}`, '#4caf50');
+    toast(`Project imported: ${p.name}`, '#4caf50');
   } catch(e) {
-    toast('Erro ao importar: ' + e.message, '#f44');
+    toast('Import error: ' + e.message, '#f44');
     console.error(e);
   }
 }
@@ -1092,7 +1092,7 @@ function exportJS() {
     .replace(/[^a-z0-9_]/g,'_').replace(/_{2,}/g,'_').replace(/^_|_$/g,'');
 
   const lines = [];
-  lines.push(`// Gerado pelo OSU Cubic Editor`);
+  lines.push(`// Generated by OSU Cubic Editor`);
   lines.push(`// format_version: ${FORMAT_VERSION}`);
   lines.push(`export const ${id} = {`);
   lines.push(`    format_version: ${JSON.stringify(FORMAT_VERSION)},`);
@@ -1125,7 +1125,7 @@ function exportJS() {
   const a    = document.createElement('a');
   a.href = url; a.download = `${id}.js`; a.click();
   URL.revokeObjectURL(url);
-  toast(`Exportado: ${id}.js`, '#4caf50');
+  toast(`Exported: ${id}.js`, '#4caf50');
 }
 
 // -------- Save --------
@@ -1133,7 +1133,7 @@ function saveProject() {
   if (!S.project) return;
   S.projects[S.project.id] = S.project;
   saveProjects();
-  toast('Projeto salvo!', '#4caf50');
+  toast('Project saved!', '#4caf50');
 }
 
 // -------- Events --------
@@ -1161,7 +1161,7 @@ function initEvents() {
 
   // Editor header
   document.getElementById('btn-back').addEventListener('click', () => {
-    if (confirm('Voltar para projetos? Lembre-se de salvar.')) {
+    if (confirm('Go back to projects? Remember to save.')) {
       stopAudio();
       if (S.animId) { cancelAnimationFrame(S.animId); S.animId = null; }
       S.project = null;
@@ -1252,9 +1252,9 @@ function initEvents() {
             map[tick][idx].z = targetZ;
             selectNote(tick, idx);
             flashCell(targetX, targetZ);
-            toast(`Nota movida → x:${targetX} z:${targetZ}`, '#4fc3f7');
+            toast(`Note moved → x:${targetX} z:${targetZ}`, '#4fc3f7');
           } else {
-            toast('Célula ocupada neste tick', '#f44');
+            toast('Cell already occupied at this tick', '#f44');
           }
         }
       }
