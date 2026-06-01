@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSU Cubic Editor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== PROJECTS SCREEN ===== -->
+<div id="screen-projects" class="screen">
+  <div class="projects-wrapper">
+    <img src="image/logo.png" alt="OSU Cubic" class="main-logo" onerror="this.style.display='none'">
+    <p class="subtitle">Editor de Mapeamento</p>
+    <div id="project-list"></div>
+    <div style="display:flex;gap:8px;width:100%">
+      <button class="btn btn-primary" id="btn-new-project" style="flex:1">+ Novo Projeto</button>
+      <button class="btn btn-accent" id="btn-import-project" style="flex:1">📥 Importar JS</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-import-project" accept=".js" style="display:none">
+
+<!-- ===== EDITOR SCREEN ===== -->
+<div id="screen-editor" class="screen hidden">
+
+  <header id="editor-header">
+    <img src="image/logo.png" alt="" class="editor-logo" onerror="this.style.display='none'">
+    <img id="music-icon-img" class="music-icon-header" style="display:none" alt="">
+    <div class="header-center">
+      <span id="header-project-name" class="project-name"></span>
+      <select id="difficulty-select">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+        <option value="expert">Expert</option>
+        <option value="master">Master</option>
+      </select>
+      <span id="note-count-badge" class="badge">0 notas</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="btn-load-audio">🎵 Áudio</button>
+      <button class="btn" id="btn-import">📥 Importar</button>
+      <button class="btn btn-success" id="btn-save">💾 Salvar</button>
+      <button class="btn btn-accent" id="btn-export">📤 Exportar JS</button>
+      <button class="btn btn-danger" id="btn-back">← Voltar</button>
+    </div>
+  </header>
+
+  <div id="editor-body">
+
+    <!-- Block Grid -->
+    <div id="grid-panel">
+      <div class="panel-bar">
+        <span class="panel-title">Grade de Notas</span>
+        <span id="grid-tick-display" class="tick-info">Tick: 0 | 0.00s</span>
+      </div>
+      <div id="block-grid-wrap">
+        <div id="block-grid"></div>
+      </div>
+      <div id="grid-footer">
+        <span id="audio-status">Sem áudio — clique em 🎵 Áudio para carregar</span>
+        <label class="grid-preview-toggle">
+          <input id="toggle-grid-preview" type="checkbox">
+          <span>Preview Minecraft</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div id="timeline-panel">
+      <div class="panel-bar">
+        <span class="panel-title">Timeline</span>
+        <span id="timeline-diff-label" class="badge"></span>
+        <span class="hint">Clique: selecionar/buscar | Scroll: navegar | Del: deletar</span>
+      </div>
+      <div id="timeline-wrap">
+        <canvas id="timeline-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Note Info + Metadata -->
+    <div id="info-panel">
+      <!-- Tabs -->
+      <div class="info-tabs">
+        <button class="info-tab active" id="tab-note" onclick="switchInfoTab('note')">🎵 Nota</button>
+        <button class="info-tab" id="tab-meta" onclick="switchInfoTab('meta')">📋 Metadados</button>
+      </div>
+
+      <!-- NOTE TAB -->
+      <div id="tab-note-content">
+        <div id="note-props-empty">
+          <p class="muted">Clique uma nota na<br>timeline ou na grade</p>
+        </div>
+        <div id="note-props-form" class="hidden">
+          <div class="prop-group">
+            <label>Tick</label>
+            <input id="prop-tick" type="number" class="prop-input" readonly>
+          </div>
+          <div class="prop-row2">
+            <div class="prop-group">
+              <label>X</label>
+              <input id="prop-x" type="number" class="prop-input" readonly>
+            </div>
+            <div class="prop-group">
+              <label>Z</label>
+              <input id="prop-z" type="number" class="prop-input" readonly>
+            </div>
+          </div>
+          <div class="prop-group">
+            <label>Type</label>
+            <input id="prop-type" type="text" class="prop-input" placeholder="normal">
+          </div>
+          <div class="prop-group">
+            <label>Sound</label>
+            <input id="prop-sound" type="text" class="prop-input" placeholder="">
+          </div>
+          <div class="prop-group">
+            <label>Event</label>
+            <input id="prop-event" type="text" class="prop-input" placeholder="">
+          </div>
+          <div class="prop-group">
+            <label>Lyric</label>
+            <input id="prop-lyric" type="text" class="prop-input" placeholder="">
+          </div>
+          <button class="btn btn-sm btn-success full-w" id="btn-apply-props">✓ Aplicar</button>
+          <button class="btn btn-sm btn-danger full-w" id="btn-delete-note">🗑 Deletar (Del)</button>
+        </div>
+      </div>
+
+      <!-- METADATA TAB -->
+      <div id="tab-meta-content" class="hidden">
+        <div id="meta-form">
+          <div class="prop-group">
+            <label>Título</label>
+            <input id="meta-name" type="text" class="prop-input" placeholder="Nome da música">
+          </div>
+          <div class="prop-group">
+            <label>Artista</label>
+            <input id="meta-artist" type="text" class="prop-input" placeholder="">
+          </div>
+          <div class="prop-group">
+            <label>Ícone Minecraft</label>
+            <input id="meta-icon" type="text" class="prop-input" placeholder="textures/music_icons/name.png">
+          </div>
+          <div class="prop-group">
+            <label>Imagem local (capa)</label>
+            <div style="display:flex;gap:4px">
+              <div id="meta-icon-preview" class="icon-preview"></div>
+              <button class="btn btn-sm" id="btn-load-icon" style="flex:1">📁 Carregar</button>
+            </div>
+          </div>
+          <div class="prop-group">
+            <label>Bloco (blockplace)</label>
+            <input id="meta-blockplace" type="text" class="prop-input" placeholder="minecraft:red_wool">
+          </div>
+          <div class="prop-group">
+            <label>Duração (s)</label>
+            <div style="display:flex;gap:4px">
+              <input id="meta-duration" type="number" class="prop-input" min="1" style="flex:1">
+              <button class="btn btn-sm btn-accent" id="btn-duration-from-audio" title="Usar duração do áudio carregado">🎵</button>
+            </div>
+          </div>
+          <div class="prop-group">
+            <label>ID Áudio Minecraft</label>
+            <input id="meta-audio-id" type="text" class="prop-input" placeholder="osu_cubic.name">
+          </div>
+          <div class="prop-group">
+            <label>ID Preview Minecraft</label>
+            <input id="meta-preview-id" type="text" class="prop-input" placeholder="osu_cubic.name.preview">
+          </div>
+          <button class="btn btn-sm btn-success full-w" id="btn-apply-meta">✓ Salvar Metadados</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end editor-body -->
+
+  <!-- Playback Bar -->
+  <footer id="playback-bar">
+    <button class="ctrl-btn" id="btn-rewind" title="Reiniciar">⏮</button>
+    <button class="ctrl-btn play-btn" id="btn-play-pause" title="Play/Pause (Espaço)">▶</button>
+    <div id="seekbar-wrap">
+      <div id="seekbar-track">
+        <div id="seekbar-fill"></div>
+        <div id="seekbar-thumb"></div>
+      </div>
+    </div>
+    <span id="time-display">0:00.000 / 0:00.000</span>
+    <label class="zoom-label">Zoom
+      <input type="range" id="zoom-slider" min="20" max="600" value="80">
+    </label>
+  </footer>
+
+</div><!-- end screen-editor -->
+
+<!-- ===== MODAL: Novo Projeto ===== -->
+<div id="modal-new-project" class="modal hidden">
+  <div class="modal-bg" id="modal-np-bg"></div>
+  <div class="modal-box">
+    <h2>Novo Projeto</h2>
+    <div class="form-grid">
+      <div class="form-field full">
+        <label>Nome da Música *</label>
+        <input type="text" id="np-name" placeholder="ex: Circus FNAF">
+      </div>
+      <div class="form-field">
+        <label>Artista</label>
+        <input type="text" id="np-artist" placeholder="ex: Living Tombstone">
+      </div>
+      <div class="form-field">
+        <label>Ícone (textura)</label>
+        <input type="text" id="np-icon" placeholder="textures/music_icons/song.png">
+      </div>
+      <div class="form-field">
+        <label>ID Áudio Minecraft</label>
+        <input type="text" id="np-audio-id" placeholder="osu_cubic.song_name">
+      </div>
+      <div class="form-field">
+        <label>ID Preview Minecraft</label>
+        <input type="text" id="np-preview-id" placeholder="osu_cubic.song_name.preview">
+      </div>
+      <div class="form-field">
+        <label>Duração (segundos) *</label>
+        <input type="number" id="np-duration" value="120" min="1">
+      </div>
+      <div class="form-field full">
+        <label>Bloco para colocar</label>
+        <input type="text" id="np-blockplace" value="minecraft:red_wool">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btn-create-project">Criar Projeto</button>
+      <button class="btn" id="btn-cancel-new">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Hidden inputs -->
+<input type="file" id="file-audio" accept=".ogg,.mp3,.wav,.flac,.m4a" style="display:none">
+<input type="file" id="file-import" accept=".js,.json" style="display:none">
+<input type="file" id="file-icon-img" accept="image/*" style="display:none">
+
+<script src="app.js"></script>
+</body>
+</html>
