@@ -130,6 +130,7 @@ function mkProject(d = {}) {
     duration:     Number(d.duration) || 120,
     blockplace:   d.blockplace   || 'minecraft:red_wool',
     maps:         d.maps         || { normal: {} },
+    bpmByTick:    d.bpmByTick    || {},  // BPM per tick for visual effects
     createdAt:    d.createdAt    || Date.now(),
   };
 }
@@ -532,6 +533,16 @@ function applyNoteProps() {
     el.dataset.mixed = '';
     for (const note of notes) note[f] = el.value;
   }
+  // Apply BPM to all selected ticks (if there's a value)
+  const bpmEl = document.getElementById('prop-bpm');
+  if (bpmEl.value) {
+    const bpm = parseFloat(bpmEl.value);
+    if (bpm > 0) {
+      const tick = S.selection[0].tick;
+      if (!S.project.bpmByTick) S.project.bpmByTick = {};
+      S.project.bpmByTick[tick] = bpm;
+    }
+  }
   toast(notes.length > 1 ? `${notes.length} notes updated` : 'Properties applied', '#4caf50');
 }
 
@@ -549,11 +560,14 @@ function updateNotePanel() {
   if (panelTitle) panelTitle.textContent = pairs.length === 1 ? 'Selected Note' : `${pairs.length} Notes`;
   empty.classList.add('hidden');
   form.classList.remove('hidden');
+  const tick = pairs[0].s.tick;
+  const bpmAtTick = S.project?.bpmByTick?.[tick] || '';
   if (pairs.length === 1) {
     const { s, note } = pairs[0];
     document.getElementById('prop-tick').value  = s.tick;
     document.getElementById('prop-x').value     = note.x;
     document.getElementById('prop-z').value     = note.z;
+    document.getElementById('prop-bpm').value   = bpmAtTick;
     for (const f of ['type','sound','event','lyric']) {
       const el = document.getElementById('prop-' + f);
       el.value = note[f] || '';
@@ -564,6 +578,7 @@ function updateNotePanel() {
     document.getElementById('prop-tick').value = `${pairs.length} notes`;
     document.getElementById('prop-x').value    = '';
     document.getElementById('prop-z').value    = '';
+    document.getElementById('prop-bpm').value  = bpmAtTick;
     for (const f of ['type','sound','event','lyric']) {
       const vals = [...new Set(pairs.map(p => p.note[f] || ''))];
       const el   = document.getElementById('prop-' + f);
@@ -1012,6 +1027,7 @@ function importJS(text) {
     if (obj.audioPreview) S.project.audioPreviewId = obj.audioPreview;
     if (obj.duration)     S.project.duration     = Number(obj.duration);
     if (obj.blockplace)   S.project.blockplace   = obj.blockplace;
+    if (obj.bpmByTick)    S.project.bpmByTick    = obj.bpmByTick;
 
     if (obj.maps && typeof obj.maps === 'object') {
       S.project.maps = {};
@@ -1073,6 +1089,7 @@ function importJSAsNewProject(text) {
         }
       }
     }
+    if (obj.bpmByTick) p.bpmByTick = obj.bpmByTick;
     S.projects[p.id] = p;
     saveProjects();
     renderProjectList();
@@ -1103,6 +1120,7 @@ function exportJS() {
   lines.push(`    audioPreview: ${JSON.stringify(p.audioPreviewId||'')},`);
   lines.push(`    duration: ${p.duration},`);
   lines.push(`    blockplace: ${JSON.stringify(p.blockplace||'minecraft:red_wool')},`);
+  lines.push(`    bpmByTick: ${JSON.stringify(p.bpmByTick||{})},`);
   lines.push(`    maps: {`);
   for (const [diff, map] of Object.entries(p.maps||{})) {
     lines.push(`        ${diff}: {`);

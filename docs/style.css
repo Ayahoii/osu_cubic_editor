@@ -17,13 +17,13 @@
   --border:      #2a2a44;
   --cell-light:  #c8c8c8;
   --cell-dark:   #888888;
-  --cell-size:   22px;
+  --cell-size:   36px;
 }
 
 /* Dirt-texture repeating background */
 body {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
+  font-size: 16px;
   color: var(--text);
   height: 100vh;
   overflow: hidden;
@@ -113,14 +113,14 @@ body {
 
 /* ===== Buttons ===== */
 .btn {
-  padding: 6px 13px;
+  padding: 10px 20px;
   border: 1px solid #444;
   background: #1e1e38;
   color: var(--text);
   cursor: pointer;
   border-radius: 2px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 14px;
   transition: background .1s, border-color .1s;
   white-space: nowrap;
   display: inline-flex;
@@ -136,7 +136,7 @@ body {
 .btn-accent:hover  { background: #1a2c4e; }
 .btn-danger  { background: #2a1414; border-color: #8a2a2a; color: var(--accent-red); }
 .btn-danger:hover  { background: #3a1e1e; }
-.btn-sm { padding: 4px 9px; font-size: 10px; }
+.btn-sm { padding: 8px 14px; font-size: 13px; }
 .full-w { width: 100%; justify-content: center; }
 
 /* ===== Editor Screen ===== */
@@ -172,7 +172,7 @@ body {
 .project-name {
   color: var(--accent-cyan);
   font-weight: bold;
-  font-size: 13px;
+  font-size: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -181,9 +181,9 @@ select, .difficulty-select {
   background: #151526;
   border: 1px solid #333;
   color: var(--text);
-  padding: 3px 7px;
+  padding: 5px 9px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   border-radius: 2px;
   cursor: pointer;
 }
@@ -191,8 +191,8 @@ select, .difficulty-select {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 1px 8px;
-  font-size: 10px;
+  padding: 3px 10px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -215,11 +215,11 @@ select, .difficulty-select {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 9px;
+  padding: 8px 14px;
   background: rgba(0,0,0,.45);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 13px;
 }
 .panel-title {
   color: var(--accent-pink);
@@ -229,11 +229,11 @@ select, .difficulty-select {
   white-space: nowrap;
 }
 .tick-info { color: var(--accent-cyan); white-space: nowrap; }
-.hint { color: var(--muted); font-size: 9px; flex: 1; text-align: right; }
+.hint { color: var(--muted); font-size: 12px; flex: 1; text-align: right; }
 
 /* Grid Panel */
 #grid-panel {
-  width: 330px;
+  width: 450px;
   flex-shrink: 0;
   background: rgba(8,8,18,.88);
   border-right: 2px solid var(--border);
@@ -300,10 +300,10 @@ select, .difficulty-select {
   100% { transform: scale(1);   opacity: 0; }
 }
 #grid-footer {
-  padding: 5px 9px;
+  padding: 9px 14px;
   background: rgba(0,0,0,.3);
   border-top: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 13px;
   color: var(--muted);
   text-align: center;
   flex-shrink: 0;
@@ -315,6 +315,7 @@ select, .difficulty-select {
   gap: 5px;
   color: #b8bbcc;
   user-select: none;
+  font-size: 13px;
 }
 
 /* Minecraft preview mode: show preview image and keep cells transparent except selection */
@@ -367,7 +368,7 @@ select, .difficulty-select {
 
 /* Info Panel */
 #info-panel {
-  width: 210px;
+  width: 320px;
   flex-shrink: 0;
   background: rgba(8,8,18,.92);
   display: flex;
@@ -381,14 +382,14 @@ select, .difficulty-select {
 }
 .info-tab {
   flex: 1;
-  padding: 6px 4px;
+  padding: 10px 8px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--muted);
   cursor: pointer;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: bold;
   letter-spacing: 0.5px;
   transition: color .1s, border-color .1s;
@@ -415,18 +416,18 @@ select, .difficulty-select {
 }
 .muted { color: var(--muted); line-height: 1.7; }
 #note-props-form {
-  padding: 8px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 12px;
 }
 
 /* Metadata form */
 #meta-form {
-  padding: 8px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 12px;
 }
 .icon-preview {
   width: 34px;
@@ -446,8 +447,8 @@ select, .difficulty-select {
   object-fit: cover;
   image-rendering: pixelated;
 }
-.prop-group { display: flex; flex-direction: column; gap: 3px; }
-.prop-group label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.prop-group { display: flex; flex-direction: column; gap: 5px; }
+.prop-group label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 .prop-row2 { display: flex; gap: 6px; }
 .prop-row2 .prop-group { flex: 1; }
 .prop-input {
@@ -455,9 +456,9 @@ select, .difficulty-select {
   background: #0e0e1e;
   border: 1px solid var(--border);
   color: var(--text);
-  padding: 4px 7px;
+  padding: 8px 12px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   border-radius: 2px;
 }
 .prop-input:focus { border-color: var(--accent-cyan); outline: none; }
@@ -478,11 +479,11 @@ select, .difficulty-select {
   background: #181830;
   border: 1px solid #333;
   color: var(--text);
-  width: 30px;
-  height: 26px;
+  width: 44px;
+  height: 40px;
   cursor: pointer;
   border-radius: 2px;
-  font-size: 13px;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -521,17 +522,17 @@ select, .difficulty-select {
 }
 #time-display {
   color: var(--accent-cyan);
-  font-size: 11px;
+  font-size: 14px;
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: 140px;
+  min-width: 160px;
 }
 .zoom-label {
   display: flex;
   align-items: center;
   gap: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 13px;
   flex-shrink: 0;
 }
 #zoom-slider { width: 75px; accent-color: var(--accent-pink); }
