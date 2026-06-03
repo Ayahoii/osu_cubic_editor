@@ -2,3 +2,4 @@ AGENTS.md
 .vscode/
 node_modules/
 *.log
+.gitignore
