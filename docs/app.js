@@ -40,6 +40,8 @@ const S = {
   // Visuals
   animId: null,
   flashCells: new Map(),  // 'x,z' → expire timestamp
+  // Grid mouse tracking
+  gridMousePos: { x: null, z: null },  // Current mouse position over grid
 };
 
 const MAX_HISTORY = 100;
@@ -124,6 +126,7 @@ function mkProject(d = {}) {
     format_version: d.format_version || FORMAT_VERSION,
     name:           d.name         || 'New Song',
     artist:       d.artist       || '',
+    mapper:       d.mapper       || '',
     icon:         d.icon         || '',
     audioMusicId: d.audioMusicId || '',
     audioPreviewId: d.audioPreviewId || '',
@@ -172,7 +175,7 @@ function renderProjectList() {
       ${iconHtml}
       <div style="min-width:0;flex:1">
         <div class="pc-name">${esc(p.name)}</div>
-        <div class="pc-meta">${esc(p.artist)} — ${p.duration}s — ${countNotes(p)} notes</div>
+        <div class="pc-meta">${esc(p.artist)} ${p.mapper ? '— Mapper: ' + esc(p.mapper) : ''} — ${p.duration}s — ${countNotes(p)} notes</div>
       </div>
       <div class="pc-acts">
         <button class="btn btn-sm btn-accent" onclick="openProject('${id}')">Edit</button>
@@ -194,6 +197,7 @@ function handleCreateProject() {
   const p = mkProject({
     name,
     artist:         document.getElementById('np-artist').value.trim(),
+    mapper:         document.getElementById('np-mapper').value.trim(),
     icon:           document.getElementById('np-icon').value.trim(),
     audioMusicId:   document.getElementById('np-audio-id').value.trim(),
     audioPreviewId: document.getElementById('np-preview-id').value.trim(),
@@ -261,6 +265,7 @@ function updateMetaPanel() {
   const p = S.project;
   document.getElementById('meta-name').value       = p.name         || '';
   document.getElementById('meta-artist').value     = p.artist       || '';
+  document.getElementById('meta-mapper').value     = p.mapper       || '';
   document.getElementById('meta-icon').value       = p.icon         || '';
   document.getElementById('meta-blockplace').value = p.blockplace   || 'minecraft:red_wool';
   document.getElementById('meta-duration').value   = p.duration     || 120;
@@ -281,6 +286,7 @@ function applyMetaProps() {
   const p = S.project;
   p.name          = document.getElementById('meta-name').value.trim();
   p.artist        = document.getElementById('meta-artist').value.trim();
+  p.mapper        = document.getElementById('meta-mapper').value.trim();
   p.icon          = document.getElementById('meta-icon').value.trim();
   p.blockplace    = document.getElementById('meta-blockplace').value.trim() || 'minecraft:red_wool';
   p.duration      = Number(document.getElementById('meta-duration').value) || 120;
@@ -350,6 +356,14 @@ function buildGrid() {
       // Click: add note or select existing
       cell.addEventListener('click', () => {
         if (S._gridDragMoved) { S._gridDragMoved = false; return; }
+        // If cell is empty, always add note immediately (ignore drag threshold)
+        const tick = curTick();
+        const map = getMap();
+        const hasNote = map[tick]?.some(n => n.x === x && n.z === z) ?? false;
+        if (!hasNote) {
+          onGridCellClick(x, z); // Empty cell - add note instantly
+          return;
+        }
         onGridCellClick(x, z);
       });
 
@@ -357,7 +371,7 @@ function buildGrid() {
       cell.addEventListener('dragstart', e => e.preventDefault());
       bubble.addEventListener('dragstart', e => e.preventDefault());
 
-      // Mousedown: start potential note drag
+      // Mousedown: start potential note drag (only if note exists at this cell)
       cell.addEventListener('mousedown', e => {
         if (e.button !== 0) return;
         e.preventDefault();
@@ -365,15 +379,22 @@ function buildGrid() {
         const map  = getMap();
         const ns   = map[tick];
         const idx  = ns ? ns.findIndex(n => n.x === x && n.z === z) : -1;
+        // Only enable drag if note exists; empty cells allow instant click
         if (idx !== -1) {
-          S.gridDrag = { tick, idx, origX: x, origZ: z };
+          S.gridDrag = { tick, idx, origX: x, origZ: z, startX: e.clientX, startY: e.clientY };
           S._gridDragMoved = false;
         }
       });
 
-      // Mouseenter: update grid drag target
-      cell.addEventListener('mouseenter', () => {
+      // Mouseenter: update grid drag target (only if real movement detected)
+      cell.addEventListener('mouseenter', (evt) => {
         if (!S.gridDrag) return;
+        // Only consider drag if mouse moved 5+ pixels from start
+        const dx = Math.abs(evt.clientX - S.gridDrag.startX);
+        const dy = Math.abs(evt.clientY - S.gridDrag.startY);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < 5) return; // Threshold: 5px
+        
         if (x !== S.gridDrag.origX || z !== S.gridDrag.origZ) {
           S.gridDrag.targetX = x;
           S.gridDrag.targetZ = z;
@@ -1022,6 +1043,7 @@ function importJS(text) {
 
     if (obj.name)         S.project.name         = obj.name;
     if (obj.artist)       S.project.artist       = obj.artist;
+    if (obj.mapper)       S.project.mapper       = obj.mapper;
     if (obj.icon)         S.project.icon         = obj.icon;
     if (obj.audioMusic)   S.project.audioMusicId = obj.audioMusic;
     if (obj.audioPreview) S.project.audioPreviewId = obj.audioPreview;
@@ -1074,6 +1096,7 @@ function importJSAsNewProject(text) {
       name:         obj.name         || 'Imported',
       format_version: obj.format_version || FORMAT_VERSION,
       artist:       obj.artist       || '',
+      mapper:       obj.mapper       || '',
       icon:         obj.icon         || '',
       audioMusicId: obj.audioMusic   || '',
       audioPreviewId: obj.audioPreview || '',
@@ -1115,6 +1138,7 @@ function exportJS() {
   lines.push(`    format_version: ${JSON.stringify(FORMAT_VERSION)},`);
   lines.push(`    name: ${JSON.stringify(p.name)},`);
   lines.push(`    artist: ${JSON.stringify(p.artist||'')},`);
+  lines.push(`    mapper: ${JSON.stringify(p.mapper||'')},`);
   lines.push(`    icon: ${JSON.stringify(p.icon||'')},`);
   lines.push(`    audioMusic: ${JSON.stringify(p.audioMusicId||'')},`);
   lines.push(`    audioPreview: ${JSON.stringify(p.audioPreviewId||'')},`);
@@ -1235,6 +1259,22 @@ function initEvents() {
   const gridEl = document.getElementById('block-grid');
   const tc = document.getElementById('timeline-canvas');
 
+  // Track mouse position over grid
+  gridWrap?.addEventListener('mousemove', (e) => {
+    const rect = gridEl?.getBoundingClientRect();
+    if (!rect) return;
+    const cellSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-size'));
+    const x = Math.floor((e.clientX - rect.left) / cellSize) + GRID_MIN;
+    const z = Math.floor((e.clientY - rect.top) / cellSize) + GRID_MIN;
+    if (x >= GRID_MIN && x <= GRID_MAX && z >= GRID_MIN && z <= GRID_MAX) {
+      S.gridMousePos = { x, z };
+    }
+  });
+
+  gridWrap?.addEventListener('mouseleave', () => {
+    S.gridMousePos = { x: null, z: null };
+  });
+
   // Auto-focus editor zones on hover to avoid double-click activation
   if (gridEl) gridEl.tabIndex = -1;
   if (tc) tc.tabIndex = -1;
@@ -1258,9 +1298,13 @@ function initEvents() {
     // Grid drag
     if (S.gridDrag) {
       document.querySelectorAll('.grid-cell.drag-target').forEach(el => el.classList.remove('drag-target'));
-      const { tick, idx, origX, origZ, targetX, targetZ } = S.gridDrag;
+      const { tick, idx, origX, origZ, targetX, targetZ, startX, startY } = S.gridDrag;
+      // Only process drag if there was real movement (5px threshold)
+      const dx = Math.abs(e.clientX - startX);
+      const dy = Math.abs(e.clientY - startY);
+      const distance = Math.sqrt(dx * dx + dy * dy);
       S.gridDrag = null;
-      if (targetX !== undefined && (targetX !== origX || targetZ !== origZ)) {
+      if (distance >= 5 && targetX !== undefined && (targetX !== origX || targetZ !== origZ)) {
         const map = getMap();
         if (map[tick]?.[idx]) {
           pushUndo();
@@ -1347,12 +1391,28 @@ function initEvents() {
     if (e.key === 'Escape' && !inInput) {
       deselectNote();
     }
+    if ((e.key === 'f' || e.key === 'F') && !inInput) {
+      e.preventDefault();
+      // Add note at current mouse position over grid
+      if (S.gridMousePos.x !== null && S.gridMousePos.z !== null) {
+        onGridCellClick(S.gridMousePos.x, S.gridMousePos.z);
+      } else {
+        toast('Move mouse over grid to add note with F', '#f5a623');
+      }
+    }
   });
 
   // Resize
-  window.addEventListener('resize', () => {
-    if (S.screen === 'editor') resizeTimeline();
+  document.getElementById('btn-toggle-grid-size').addEventListener('click', () => {
+    document.getElementById('editor-body').classList.toggle('expanded-grid');
   });
+
+  const tlWrap = document.getElementById('timeline-wrap');
+  if (tlWrap) {
+    new ResizeObserver(() => {
+      if (S.screen === 'editor') resizeTimeline();
+    }).observe(tlWrap);
+  }
 }
 
 // -------- Init --------

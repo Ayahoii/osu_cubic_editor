@@ -233,12 +233,19 @@ select, .difficulty-select {
 
 /* Grid Panel */
 #grid-panel {
-  width: 450px;
+  width: 480px;
   flex-shrink: 0;
   background: rgba(8,8,18,.88);
   border-right: 2px solid var(--border);
   display: flex;
   flex-direction: column;
+  transition: width 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+#editor-body.expanded-grid #grid-panel {
+  width: 680px;
+}
+#editor-body.expanded-grid {
+  --cell-size: 48px;
 }
 #block-grid-wrap {
   flex: 1;
@@ -261,7 +268,7 @@ select, .difficulty-select {
   cursor: pointer;
   position: relative;
   background-color: var(--cell-light);
-  transition: border-color .08s;
+  transition: width 0.2s cubic-bezier(0.2, 0, 0, 1), height 0.2s cubic-bezier(0.2, 0, 0, 1), border-color .08s;
   display: flex;
   align-items: center;
   justify-content: center;
