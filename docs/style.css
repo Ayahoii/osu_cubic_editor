@@ -689,6 +689,34 @@ select, .difficulty-select {
 .form-field input:focus { border-color: var(--accent-cyan); outline: none; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
 
+/* ===== Social Links ===== */
+#social-links {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+}
+.social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(14,14,30,.85);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.social-btn:hover {
+  color: var(--text);
+  border-color: #555;
+  background: #1e1e38;
+}
+
 /* ===== Toast ===== */
 #toast {
   position: fixed;
