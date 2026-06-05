@@ -8,6 +8,7 @@ const FORMAT_VERSION = '1.0'; // Exported map format version
 const GRID_MIN = -6;
 const GRID_MAX = 6;
 const GRID_SIZE = GRID_MAX - GRID_MIN + 1; // 13
+const BEAT_H = 28;       // height of beat lane at bottom of timeline
 
 // -------- State --------
 const S = {
@@ -34,6 +35,7 @@ const S = {
   tlDrag: null,           // timeline drag: { mode:'noteDrag'|'boxSel'|'seek', ... }
   gridDrag: null,         // grid drag: { tick, idx, origX, origZ }
   gridPreview: false,
+  beatTapStart: null,     // tick of first beat-tap (null = not tapping)
   // Undo history
   history: [],            // [{ diff, map, selection }] snapshots
   historyPtr: -1,         // current position in history
@@ -134,6 +136,7 @@ function mkProject(d = {}) {
     blockplace:   d.blockplace   || 'minecraft:red_wool',
     maps:         d.maps         || { normal: {} },
     bpmByTick:    d.bpmByTick    || {},  // BPM per tick for visual effects
+    bpmMethods:   d.bpmMethods   || {},  // method used: 'manual' | 'tap'
     createdAt:    d.createdAt    || Date.now(),
   };
 }
@@ -146,6 +149,34 @@ function countNotes(project) {
   let n = 0;
   for (const d of Object.values(project.maps||{})) for (const ns of Object.values(d)) n += ns.length;
   return n;
+}
+
+function capitalize(value) {
+  return String(value).charAt(0).toUpperCase() + String(value).slice(1);
+}
+
+function copyDifficultyMap(sourceDiff, targetDiff) {
+  if (!S.project) return;
+  if (sourceDiff === targetDiff) {
+    toast('Select a different target difficulty', '#f5a623');
+    return;
+  }
+  const sourceMap = JSON.parse(JSON.stringify(S.project.maps[sourceDiff] || {}));
+  if (!Object.keys(sourceMap).length) {
+    if (!confirm(`Source difficulty ${capitalize(sourceDiff)} is empty. Copy anyway to ${capitalize(targetDiff)}?`)) return;
+  }
+  const targetMap = S.project.maps[targetDiff] || {};
+  if (Object.keys(targetMap).length) {
+    if (!confirm(`Copy map from ${capitalize(sourceDiff)} into ${capitalize(targetDiff)}?\nThis will overwrite all existing notes on ${capitalize(targetDiff)}.`)) return;
+  }
+  S.project.maps[targetDiff] = sourceMap;
+  if (S.diff === targetDiff) {
+    buildGrid();
+    updateNotePanel();
+  }
+  updateBadge();
+  saveProject();
+  toast(`Copied map from ${capitalize(sourceDiff)} → ${capitalize(targetDiff)}`, '#4caf50');
 }
 
 // -------- Screen --------
@@ -245,18 +276,15 @@ function openProject(id) {
 
 // -------- Info Panel Tabs --------
 function switchInfoTab(tab) {
-  const noteBtn    = document.getElementById('tab-note');
-  const metaBtn    = document.getElementById('tab-meta');
-  const noteContent = document.getElementById('tab-note-content');
-  const metaContent = document.getElementById('tab-meta-content');
-  if (tab === 'note') {
-    noteBtn.classList.add('active');    metaBtn.classList.remove('active');
-    noteContent.classList.remove('hidden'); metaContent.classList.add('hidden');
-  } else {
-    metaBtn.classList.add('active');    noteBtn.classList.remove('active');
-    metaContent.classList.remove('hidden'); noteContent.classList.add('hidden');
-    updateMetaPanel();
+  const btns     = { note: 'tab-note', meta: 'tab-meta', tools: 'tab-tools' };
+  const contents = { note: 'tab-note-content', meta: 'tab-meta-content', tools: 'tab-tools-content' };
+  for (const [key, id] of Object.entries(btns)) {
+    document.getElementById(id)?.classList.toggle('active', key === tab);
   }
+  for (const [key, id] of Object.entries(contents)) {
+    document.getElementById(id)?.classList.toggle('hidden', key !== tab);
+  }
+  if (tab === 'meta') updateMetaPanel();
 }
 
 // -------- Metadata --------
@@ -561,7 +589,9 @@ function applyNoteProps() {
     if (bpm > 0) {
       const tick = S.selection[0].tick;
       if (!S.project.bpmByTick) S.project.bpmByTick = {};
+      if (!S.project.bpmMethods) S.project.bpmMethods = {};
       S.project.bpmByTick[tick] = bpm;
+      S.project.bpmMethods[tick] = 'manual';
     }
   }
   toast(notes.length > 1 ? `${notes.length} notes updated` : 'Properties applied', '#4caf50');
@@ -629,9 +659,25 @@ async function restoreAudio(p) {
     S.buf = await S.ctx.decodeAudioData(ab);
     document.getElementById('audio-status').textContent =
       `\ud83c\udfb5 ${p.audioFileName || 'saved audio'}  (${fmt(S.buf.duration)})`;
+    updateAudioBtn();
   } catch(e) {
     document.getElementById('audio-status').textContent = 'Error restoring audio — please reload the file';
     console.warn('restoreAudio:', e);
+  }
+}
+
+function updateAudioBtn() {
+  const btn = document.getElementById('btn-load-audio');
+  if (!btn) return;
+  if (S.buf && S.project?.audioFileName) {
+    const name = S.project.audioFileName.length > 18
+      ? S.project.audioFileName.slice(0, 16) + '…'
+      : S.project.audioFileName;
+    btn.textContent = `🎵 ${name}`;
+    btn.classList.add('btn-audio-loaded');
+  } else {
+    btn.textContent = '🎵 Load Audio';
+    btn.classList.remove('btn-audio-loaded');
   }
 }
 
@@ -653,6 +699,7 @@ async function loadAudio(file) {
       `🎵 ${file.name}  (${fmt(S.buf.duration)})`;
     if (!S.project.duration || S.project.duration <= 5)
       S.project.duration = Math.ceil(S.buf.duration);
+    updateAudioBtn();
     toast(`Audio loaded: ${file.name}`, '#4caf50');
   } catch(e) { toast('Error loading audio: ' + e.message, '#f44'); }
 }
@@ -766,7 +813,7 @@ function renderTimeline() {
 
   // Z-rows
   const numZ  = GRID_SIZE; // 13 rows
-  const rowH  = (H - HEAD_H) / numZ;
+  const rowH  = (H - HEAD_H - BEAT_H) / numZ;
   for (let zi = 0; zi < numZ; zi++) {
     const z    = GRID_MIN + zi;
     const rowY = HEAD_H + zi * rowH;
@@ -858,6 +905,111 @@ function renderTimeline() {
   ctx.closePath();
   ctx.fillStyle = '#ff4444';
   ctx.fill();
+
+  // ---- Beat Lane ----
+  const beatLaneY = HEAD_H + numZ * rowH;
+  ctx.fillStyle = '#080814';
+  ctx.fillRect(0, beatLaneY, W, BEAT_H);
+  ctx.fillStyle = '#252550';
+  ctx.fillRect(0, beatLaneY, W, 1);
+
+  ctx.fillStyle = '#445';
+  ctx.font = '9px monospace';
+  ctx.fillText('BEAT', 3, beatLaneY + BEAT_H * 0.62 + 3);
+
+  const bpmRaw = S.project?.bpmByTick || {};
+  const bpmMarkers = Object.entries(bpmRaw)
+    .map(([t, b]) => ({ tick: Number(t), bpm: Number(b) }))
+    .sort((a, b) => a.tick - b.tick);
+
+  const visStart = S.viewOff;
+  const visEnd   = visStart + W / pps;
+
+  if (bpmMarkers.length === 0) {
+    ctx.fillStyle = '#334';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Clique: BPM manual  |  Shift+clique: 2-tap  |  Botão dir.: remover', W / 2, beatLaneY + BEAT_H / 2 + 4);
+    ctx.textAlign = 'left';
+  } else {
+    // Build visible segments
+    for (let bi = 0; bi < bpmMarkers.length; bi++) {
+      const segStartSec = bpmMarkers[bi].tick / TPS;
+      const segEndSec   = bi + 1 < bpmMarkers.length
+        ? bpmMarkers[bi + 1].tick / TPS
+        : visEnd + 60;
+      if (segStartSec > visEnd) break;
+      if (segEndSec < visStart) continue;
+
+      const bpm = bpmMarkers[bi].bpm;
+      const beatSec = 60 / bpm;
+      const firstIdx = Math.max(0, Math.floor((visStart - segStartSec) / beatSec));
+      let beatIdx = firstIdx;
+
+      while (true) {
+        const beatTime = segStartSec + beatIdx * beatSec;
+        if (beatTime > segEndSec || beatTime > visEnd + beatSec) break;
+        const bx = beatTime * pps - offPx;
+        if (bx >= -2 && bx <= W + 2) {
+          const isDownbeat = beatIdx % 4 === 0;
+          const isHalf     = !isDownbeat && beatIdx % 2 === 0;
+          ctx.beginPath();
+          ctx.moveTo(bx, beatLaneY + (isDownbeat ? 2 : isHalf ? 8 : 12));
+          ctx.lineTo(bx, beatLaneY + BEAT_H - 2);
+          ctx.strokeStyle = isDownbeat
+            ? 'rgba(79,195,247,0.75)'
+            : isHalf
+            ? 'rgba(79,195,247,0.38)'
+            : 'rgba(79,195,247,0.18)';
+          ctx.lineWidth = isDownbeat ? 1.5 : 0.8;
+          ctx.stroke();
+        }
+        beatIdx++;
+      }
+    }
+
+    // BPM marker diamonds (pink=manual, orange=tap)
+    for (const e of bpmMarkers) {
+      const bx = e.tick / TPS * pps - offPx;
+      if (bx < -20 || bx > W + 20) continue;
+      const cy = beatLaneY + BEAT_H / 2;
+      const r  = 5;
+      const method = S.project?.bpmMethods?.[e.tick] || 'manual';
+      const color  = method === 'tap' ? '#f5a623' : '#e94fbb';
+      ctx.beginPath();
+      ctx.moveTo(bx, cy - r);
+      ctx.lineTo(bx + r, cy);
+      ctx.lineTo(bx, cy + r);
+      ctx.lineTo(bx - r, cy);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      if (bx + 8 < W) {
+        ctx.fillStyle = color;
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText(String(e.bpm), bx + 8, cy + 3);
+      }
+    }
+
+    // Pending beat-tap indicator (dashed line at first tap position)
+    if (S.beatTapStart !== null) {
+      const bx = S.beatTapStart / TPS * pps - offPx;
+      if (bx >= -5 && bx <= W + 5) {
+        ctx.save();
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(bx, beatLaneY + 2);
+        ctx.lineTo(bx, beatLaneY + BEAT_H - 2);
+        ctx.strokeStyle = '#f5a623';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = '#f5a623';
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText(`1ª t${S.beatTapStart}`, bx + 3, beatLaneY + 11);
+      }
+    }
+  }
 }
 
 function _tlCoords(e) {
@@ -868,11 +1020,12 @@ function _tlCoords(e) {
   const H  = canvas.height;
   const HEAD_H = 18;
   const numZ = GRID_SIZE;
-  const rowH = (H - HEAD_H) / numZ;
+  const rowH = (H - HEAD_H - BEAT_H) / numZ;
   const sec  = (mx + S.viewOff * S.pps) / S.pps;
   const tick = Math.round(sec * TPS);
   const zi   = Math.floor((my - HEAD_H) / rowH);
-  return { mx, my, sec, tick, zi, rowH, HEAD_H, H };
+  const inBeatLane = my >= H - BEAT_H;
+  return { mx, my, sec, tick, zi, rowH, HEAD_H, H, inBeatLane };
 }
 
 function _findNoteAt(tick, zi, mx) {
@@ -894,8 +1047,50 @@ function _findNoteAt(tick, zi, mx) {
 
 function onTimelineMouseDown(e) {
   if (!S.project || e.button !== 0) return;
-  const { mx, my, sec, tick, zi, rowH, HEAD_H } = _tlCoords(e);
+  const { mx, my, sec, tick, zi, rowH, HEAD_H, inBeatLane } = _tlCoords(e);
   const canvas = document.getElementById('timeline-canvas');
+
+  if (inBeatLane) {
+    if (e.shiftKey) {
+      // TAP METHOD: dois cliques na beat lane → BPM calculado pelo intervalo
+      if (S.beatTapStart === null) {
+        S.beatTapStart = tick;
+        toast(`1ª batida: tick ${tick} — Shift+clique na 2ª batida`, '#f5a623');
+      } else {
+        const interval = tick - S.beatTapStart;
+        if (interval <= 0) {
+          S.beatTapStart = null;
+          toast('2ª batida deve ser após a 1ª. Tap cancelado.', '#f44');
+          e.preventDefault();
+          return;
+        }
+        const bpm = Math.round(60 * TPS / interval * 10) / 10;
+        if (!S.project.bpmByTick) S.project.bpmByTick = {};
+        if (!S.project.bpmMethods) S.project.bpmMethods = {};
+        S.project.bpmByTick[S.beatTapStart] = bpm;
+        S.project.bpmMethods[S.beatTapStart] = 'tap';
+        const tapTick = S.beatTapStart;
+        S.beatTapStart = null;
+        saveProject();
+        toast(`BPM calculado: ${bpm} (tap) — tick ${tapTick}`, '#f5a623');
+      }
+    } else {
+      // MANUAL METHOD: digitar valor de BPM
+      const bpmStr = prompt(`BPM no tick ${tick} (${(tick / TPS).toFixed(2)}s):`, '120');
+      if (bpmStr === null) { e.preventDefault(); return; }
+      const bpm = parseFloat(bpmStr);
+      if (!bpm || bpm <= 0 || bpm > 9999) { toast('Valor de BPM inválido', '#f44'); e.preventDefault(); return; }
+      if (!S.project.bpmByTick) S.project.bpmByTick = {};
+      if (!S.project.bpmMethods) S.project.bpmMethods = {};
+      S.project.bpmByTick[tick] = bpm;
+      S.project.bpmMethods[tick] = 'manual';
+      saveProject();
+      toast(`BPM ${bpm} definido no tick ${tick}`, '#e94fbb');
+    }
+    e.preventDefault();
+    return;
+  }
+
   canvas.style.cursor = 'grabbing';
 
   const found = (zi >= 0 && zi < GRID_SIZE) ? _findNoteAt(tick, zi, mx) : null;
@@ -919,10 +1114,11 @@ function onTimelineMouseDown(e) {
 function onTimelineMouseMove(e) {
   if (!S.project) return;
   const canvas = document.getElementById('timeline-canvas');
-  const { mx, my, sec, tick, zi } = _tlCoords(e);
+  const { mx, my, sec, tick, zi, inBeatLane } = _tlCoords(e);
 
   // Update cursor hint when not dragging
   if (!S.tlDrag) {
+    if (inBeatLane) { canvas.style.cursor = 'pointer'; return; }
     const found = (zi >= 0 && zi < GRID_SIZE) ? _findNoteAt(tick, zi, mx) : null;
     canvas.style.cursor = found ? 'grab' : (zi < 0 ? 'ew-resize' : 'crosshair');
     return;
@@ -975,7 +1171,7 @@ function onTimelineMouseUp(e) {
       const canvas2 = document.getElementById('timeline-canvas');
       const H = canvas2.height;
       const HEAD_H = 18;
-      const rowH = (H - HEAD_H) / GRID_SIZE;
+      const rowH = (H - HEAD_H - BEAT_H) / GRID_SIZE;
       const map = getMap();
       const newSel = [];
       for (const [ts, notes] of Object.entries(map)) {
@@ -1008,11 +1204,34 @@ function onTimelineScroll(e) {
   S.viewOff = Math.max(0, Math.min(S.viewOff + e.deltaY / S.pps * 2, dur));
 }
 
-// Timeline right-click: delete note
+// Timeline right-click: delete note or BPM marker
 function onTimelineContextMenu(e) {
   e.preventDefault();
   if (!S.project) return;
-  const { tick, zi, mx } = _tlCoords(e);
+  const { tick, zi, mx, inBeatLane } = _tlCoords(e);
+
+  if (inBeatLane) {
+    const bpmByTick = S.project.bpmByTick;
+    if (!bpmByTick || !Object.keys(bpmByTick).length) return;
+    const tolTicks = Math.ceil(10 / S.pps * TPS);
+    let nearestTick = null, nearestDist = Infinity;
+    for (const t of Object.keys(bpmByTick)) {
+      const dist = Math.abs(Number(t) - tick);
+      if (dist < tolTicks && dist < nearestDist) {
+        nearestDist = dist;
+        nearestTick = Number(t);
+      }
+    }
+    if (nearestTick !== null) {
+      delete bpmByTick[nearestTick];
+      if (S.project.bpmMethods) delete S.project.bpmMethods[nearestTick];
+      saveProject();
+      toast(`Marcador de BPM removido no tick ${nearestTick}`, '#f44');
+    }
+    if (S.beatTapStart !== null) { S.beatTapStart = null; toast('Tap cancelado', '#888'); }
+    return;
+  }
+
   if (zi < 0 || zi >= GRID_SIZE) return;
   const found = _findNoteAt(tick, zi, mx);
   if (!found) return;
@@ -1050,6 +1269,7 @@ function importJS(text) {
     if (obj.duration)     S.project.duration     = Number(obj.duration);
     if (obj.blockplace)   S.project.blockplace   = obj.blockplace;
     if (obj.bpmByTick)    S.project.bpmByTick    = obj.bpmByTick;
+    if (obj.bpmMethods)   S.project.bpmMethods   = obj.bpmMethods;
 
     if (obj.maps && typeof obj.maps === 'object') {
       S.project.maps = {};
@@ -1112,11 +1332,54 @@ function importJSAsNewProject(text) {
         }
       }
     }
-    if (obj.bpmByTick) p.bpmByTick = obj.bpmByTick;
+    if (obj.bpmByTick)  p.bpmByTick  = obj.bpmByTick;
+    if (obj.bpmMethods) p.bpmMethods = obj.bpmMethods;
     S.projects[p.id] = p;
     saveProjects();
     renderProjectList();
     toast(`Project imported: ${p.name}`, '#4caf50');
+  } catch(e) {
+    toast('Import error: ' + e.message, '#f44');
+    console.error(e);
+  }
+}
+
+// -------- Export / Import Project (.ocproj) --------
+function exportProject() {
+  if (!S.project) return;
+  // Save current state first so audio/icon are included
+  saveProject();
+  const blob = new Blob([JSON.stringify(S.project)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = (S.project.name || 'project').replace(/[^a-z0-9_\- ]/gi, '_') + '.ocproj';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Project exported!', '#4caf50');
+}
+
+async function importProjectFile(file) {
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.maps) throw new Error('Not a valid .ocproj file');
+
+    // Build a clean project preserving embedded assets
+    const p = mkProject(data);
+    p.audioDataUrl   = data.audioDataUrl   || null;
+    p.audioFileName  = data.audioFileName  || null;
+    p.iconDataUrl    = data.iconDataUrl    || null;
+    p.bpmByTick      = data.bpmByTick      || {};
+    p.bpmMethods     = data.bpmMethods     || {};
+
+    // Save current project state before switching
+    if (S.project) saveProject();
+
+    S.projects[p.id] = p;
+    saveProjects();
+    openProject(p.id);
+    toast(`Project loaded: ${p.name}`, '#4caf50');
   } catch(e) {
     toast('Import error: ' + e.message, '#f44');
     console.error(e);
@@ -1145,6 +1408,7 @@ function exportJS() {
   lines.push(`    duration: ${p.duration},`);
   lines.push(`    blockplace: ${JSON.stringify(p.blockplace||'minecraft:red_wool')},`);
   lines.push(`    bpmByTick: ${JSON.stringify(p.bpmByTick||{})},`);
+  lines.push(`    bpmMethods: ${JSON.stringify(p.bpmMethods||{})},`);
   lines.push(`    maps: {`);
   for (const [diff, map] of Object.entries(p.maps||{})) {
     lines.push(`        ${diff}: {`);
@@ -1182,8 +1446,18 @@ function saveProject() {
 function initEvents() {
   // Projects
   document.getElementById('btn-new-project').addEventListener('click', openNewProjectModal);
-  document.getElementById('btn-import-project').addEventListener('click', () =>
+  // Projects screen dropdown
+  const ddMain     = document.getElementById('btn-import-project');
+  const ddMainMenu = document.getElementById('dd-import-main-menu');
+  ddMain.addEventListener('click', e => {
+    e.stopPropagation();
+    ddMainMenu.classList.toggle('hidden');
+  });
+  document.getElementById('dd-main-import-js').addEventListener('click', () =>
     document.getElementById('file-import-project').click()
+  );
+  document.getElementById('dd-main-import-proj').addEventListener('click', () =>
+    document.getElementById('file-import-proj-main').click()
   );
   document.getElementById('file-import-project').addEventListener('change', e => {
     const f = e.target.files[0];
@@ -1191,6 +1465,11 @@ function initEvents() {
     const rd = new FileReader();
     rd.onload = ev => importJSAsNewProject(ev.target.result);
     rd.readAsText(f);
+    e.target.value = '';
+  });
+  document.getElementById('file-import-proj-main').addEventListener('change', async e => {
+    const f = e.target.files[0];
+    if (f) await importProjectFile(f);
     e.target.value = '';
   });
   document.getElementById('btn-create-project').addEventListener('click', handleCreateProject);
@@ -1211,25 +1490,48 @@ function initEvents() {
       renderProjectList();
     }
   });
+  document.getElementById('btn-auto-bpm').addEventListener('click', autoBpmDetect);
   document.getElementById('btn-save').addEventListener('click', saveProject);
   document.getElementById('btn-export').addEventListener('click', exportJS);
-  document.getElementById('btn-load-audio').addEventListener('click', () =>
-    document.getElementById('file-audio').click()
-  );
+  document.getElementById('btn-load-audio').addEventListener('click', () => {
+    if (S.buf && !confirm('Replace the current audio?')) return;
+    document.getElementById('file-audio').click();
+  });
   document.getElementById('file-audio').addEventListener('change', async e => {
     const f = e.target.files[0];
     if (f) await loadAudio(f);
     e.target.value = '';
   });
-  document.getElementById('btn-import').addEventListener('click', () =>
+  // Dropdown toggle
+  const ddBtn  = document.getElementById('btn-dd-project');
+  const ddMenu = document.getElementById('dd-project-menu');
+  ddBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    ddMenu.classList.toggle('hidden');
+  });
+  document.addEventListener('click', () => ddMenu.classList.add('hidden'));
+
+  // Dropdown items
+  document.getElementById('dd-import-js').addEventListener('click', () =>
     document.getElementById('file-import').click()
   );
+  document.getElementById('dd-import-proj').addEventListener('click', () =>
+    document.getElementById('file-import-proj').click()
+  );
+  document.getElementById('dd-export-proj').addEventListener('click', exportProject);
+
+  // File inputs
   document.getElementById('file-import').addEventListener('change', e => {
     const f = e.target.files[0];
     if (!f) return;
     const rd = new FileReader();
     rd.onload = ev => importJS(ev.target.result);
     rd.readAsText(f);
+    e.target.value = '';
+  });
+  document.getElementById('file-import-proj').addEventListener('change', async e => {
+    const f = e.target.files[0];
+    if (f) await importProjectFile(f);
     e.target.value = '';
   });
 
@@ -1239,6 +1541,12 @@ function initEvents() {
     S.diff = d;
     deselectNote();
     updateBadge();
+  });
+
+  document.getElementById('btn-copy-map').addEventListener('click', () => {
+    const sourceDiff = document.getElementById('copy-source-select').value;
+    const targetDiff = document.getElementById('copy-target-select').value;
+    copyDifficultyMap(sourceDiff, targetDiff);
   });
 
   // Playback
@@ -1263,7 +1571,7 @@ function initEvents() {
   gridWrap?.addEventListener('mousemove', (e) => {
     const rect = gridEl?.getBoundingClientRect();
     if (!rect) return;
-    const cellSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-size'));
+    const cellSize = rect.width > 0 ? rect.width / GRID_SIZE : 36;
     const x = Math.floor((e.clientX - rect.left) / cellSize) + GRID_MIN;
     const z = Math.floor((e.clientY - rect.top) / cellSize) + GRID_MIN;
     if (x >= GRID_MIN && x <= GRID_MAX && z >= GRID_MIN && z <= GRID_MAX) {
@@ -1390,6 +1698,7 @@ function initEvents() {
     }
     if (e.key === 'Escape' && !inInput) {
       deselectNote();
+      if (S.beatTapStart !== null) { S.beatTapStart = null; toast('Tap cancelado', '#888'); }
     }
     if ((e.key === 'f' || e.key === 'F') && !inInput) {
       e.preventDefault();
@@ -1413,6 +1722,125 @@ function initEvents() {
       if (S.screen === 'editor') resizeTimeline();
     }).observe(tlWrap);
   }
+}
+
+// -------- Auto BPM Detection --------
+async function autoBpmDetect() {
+  if (!S.buf) { toast('Load audio first', '#f44'); return; }
+  if (!S.project) return;
+
+  toast('Analyzing audio…', '#f5a623', 60000);
+  await new Promise(r => setTimeout(r, 30));
+
+  const sr   = S.buf.sampleRate;
+  const HOP  = 512;
+  const fps  = sr / HOP;
+
+  // Mix to mono
+  const ch0 = S.buf.getChannelData(0);
+  let data;
+  if (S.buf.numberOfChannels >= 2) {
+    const ch1 = S.buf.getChannelData(1);
+    data = new Float32Array(ch0.length);
+    for (let i = 0; i < ch0.length; i++) data[i] = (ch0[i] + ch1[i]) * 0.5;
+  } else {
+    data = ch0;
+  }
+
+  // Full song length for beat tracking (after BPM estimated from first 45s)
+  const fullLen = data.length;
+
+  // --- Step 1: RMS energy + onset strength for the full song ---
+  const fullFrames = Math.floor((fullLen - HOP) / HOP);
+  const onset = new Float32Array(fullFrames);
+  let prevE = 0;
+  for (let i = 0; i < fullFrames; i++) {
+    let e = 0;
+    const base = i * HOP;
+    for (let j = 0; j < HOP; j++) e += data[base + j] ** 2;
+    e = Math.sqrt(e / HOP);
+    onset[i] = Math.max(0, e - prevE);
+    prevE = e;
+  }
+
+  // --- Step 2: Autocorrelation on first 45s to estimate BPM ---
+  const N45 = Math.min(fullFrames, Math.floor(fps * 45));
+  const lagMin = Math.floor(fps * 60 / 220);
+  const lagMax = Math.ceil(fps * 60 / 60);
+
+  let bestLag = lagMin, bestCorr = -Infinity;
+  for (let lag = lagMin; lag <= lagMax; lag++) {
+    let corr = 0;
+    for (let i = 0; i < N45 - lag; i++) corr += onset[i] * onset[i + lag];
+    corr /= (N45 - lag);
+    if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+  }
+
+  // Half-time / double-time check
+  for (const lag of [bestLag * 2, Math.round(bestLag / 2)]) {
+    if (lag < lagMin || lag > lagMax) continue;
+    let corr = 0;
+    for (let i = 0; i < N45 - lag; i++) corr += onset[i] * onset[i + lag];
+    corr /= (N45 - lag);
+    if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+  }
+
+  const globalBpm = 60 * fps / bestLag;
+
+  // --- Step 3: Find beat phase ---
+  let bestPhase = 0, bestScore = -Infinity;
+  for (let phase = 0; phase < bestLag; phase++) {
+    let score = 0;
+    for (let pos = phase; pos < N45; pos += bestLag)
+      score += onset[Math.round(pos)] || 0;
+    if (score > bestScore) { bestScore = score; bestPhase = phase; }
+  }
+
+  // --- Step 4: Track every beat across full song ---
+  // For each expected beat position, snap to local onset peak within ±20% of the period
+  const snap = Math.floor(bestLag * 0.2);
+  const beatFrames = [];
+  for (let pos = bestPhase; pos < fullFrames; pos += bestLag) {
+    const center = Math.round(pos);
+    const lo = Math.max(0, center - snap);
+    const hi = Math.min(fullFrames - 1, center + snap);
+    let peakFrame = center, peakVal = onset[center] || 0;
+    for (let k = lo; k <= hi; k++) {
+      if ((onset[k] || 0) > peakVal) { peakVal = onset[k]; peakFrame = k; }
+    }
+    beatFrames.push(peakFrame);
+  }
+
+  // --- Step 5: Store each beat in bpmByTick ---
+  // Remove previous auto-detected markers, keep manual/tap ones
+  if (!S.project.bpmByTick)  S.project.bpmByTick  = {};
+  if (!S.project.bpmMethods) S.project.bpmMethods = {};
+  for (const t of Object.keys(S.project.bpmByTick)) {
+    if (S.project.bpmMethods[t] === 'auto') {
+      delete S.project.bpmByTick[t];
+      delete S.project.bpmMethods[t];
+    }
+  }
+
+  for (let i = 0; i < beatFrames.length; i++) {
+    const tick = Math.max(0, Math.round((beatFrames[i] * HOP / sr) * TPS));
+    // Local BPM = interval to next beat; fallback to global on last beat
+    let localBpm = globalBpm;
+    if (i + 1 < beatFrames.length) {
+      const intervalFrames = beatFrames[i + 1] - beatFrames[i];
+      if (intervalFrames > 0) localBpm = 60 * fps / intervalFrames;
+    }
+    const bpmRounded = Math.round(localBpm * 10) / 10;
+    S.project.bpmByTick[tick]  = bpmRounded;
+    S.project.bpmMethods[tick] = 'auto';
+  }
+
+  document.getElementById('toast')?.remove?.();
+  renderTimeline();
+  toast(
+    `${beatFrames.length} beats marked — ~${Math.round(globalBpm)} BPM`,
+    '#4caf50', 4000
+  );
 }
 
 // -------- Init --------

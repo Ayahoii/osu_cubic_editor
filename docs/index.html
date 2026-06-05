@@ -16,12 +16,19 @@
     <div id="project-list"></div>
     <div style="display:flex;gap:8px;width:100%">
       <button class="btn btn-primary" id="btn-new-project" style="flex:1">+ New Project</button>
-      <button class="btn btn-accent" id="btn-import-project" style="flex:1">📥 Import JS</button>
+      <div class="projects-dropdown" id="dd-import-main">
+        <button class="btn btn-accent" id="btn-import-project" style="width:100%">📥 Import ▾</button>
+        <div class="dropdown-menu hidden" id="dd-import-main-menu">
+          <button class="dropdown-item" id="dd-main-import-js">📥 Import Map JS</button>
+          <button class="dropdown-item" id="dd-main-import-proj">📂 Import Project</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 <input type="file" id="file-import-project" accept=".js" style="display:none">
+<input type="file" id="file-import-proj-main" accept=".ocproj,.json" style="display:none">
 
 <!-- ===== EDITOR SCREEN ===== -->
 <div id="screen-editor" class="screen hidden">
@@ -40,8 +47,16 @@
       <span id="note-count-badge" class="badge">0 notes</span>
     </div>
     <div class="header-actions">
-      <button class="btn" id="btn-load-audio">🎵 Audio</button>
-      <button class="btn" id="btn-import">📥 Import</button>
+      <button class="btn" id="btn-load-audio">🎵 Load Audio</button>
+      <div class="header-dropdown" id="dd-project">
+        <button class="btn" id="btn-dd-project">📥 Import ▾</button>
+        <div class="dropdown-menu hidden" id="dd-project-menu">
+          <button class="dropdown-item" id="dd-import-js">📥 Import Map JS</button>
+          <button class="dropdown-item" id="dd-import-proj">📂 Import Project</button>
+          <div class="dropdown-sep"></div>
+          <button class="dropdown-item" id="dd-export-proj">💾 Export Project</button>
+        </div>
+      </div>
       <button class="btn btn-success" id="btn-save">💾 Save</button>
       <button class="btn btn-accent" id="btn-export">📤 Export JS</button>
       <button class="btn btn-danger" id="btn-back">← Back</button>
@@ -87,7 +102,8 @@
       <!-- Tabs -->
       <div class="info-tabs">
         <button class="info-tab active" id="tab-note" onclick="switchInfoTab('note')">🎵 Note</button>
-        <button class="info-tab" id="tab-meta" onclick="switchInfoTab('meta')">📋 Metadata</button>
+        <button class="info-tab" id="tab-meta" onclick="switchInfoTab('meta')">📋 Meta</button>
+        <button class="info-tab" id="tab-tools" onclick="switchInfoTab('tools')">🔧 Tools</button>
       </div>
 
       <!-- NOTE TAB -->
@@ -183,8 +199,47 @@
           <button class="btn btn-sm btn-success full-w" id="btn-apply-meta">✓ Save Metadata</button>
         </div>
       </div>
-    </div>
 
+      <!-- TOOLS TAB -->
+      <div id="tab-tools-content" class="hidden">
+        <div id="tools-form">
+
+          <div class="tool-section">
+            <span class="tool-section-title">Difficulty</span>
+            <div class="prop-group">
+              <label>Copy map from → to</label>
+              <div class="tool-copy-row">
+                <select id="copy-source-select">
+                  <option value="easy">Easy</option>
+                  <option value="normal">Normal</option>
+                  <option value="hard">Hard</option>
+                  <option value="expert">Expert</option>
+                </select>
+                <span class="copy-arrow">→</span>
+                <select id="copy-target-select">
+                  <option value="easy">Easy</option>
+                  <option value="normal">Normal</option>
+                  <option value="hard">Hard</option>
+                  <option value="expert">Expert</option>
+                </select>
+              </div>
+              <button class="btn btn-sm btn-accent full-w" id="btn-copy-map">Copy Difficulty</button>
+            </div>
+          </div>
+
+          <div class="tool-section">
+            <span class="tool-section-title">Beat Detection</span>
+            <div class="prop-group">
+              <label>Auto-detect BPM from audio</label>
+              <p class="tool-desc">Analyzes the loaded audio and marks every beat on the timeline. Works best on music with a clear rhythm.</p>
+              <button class="btn btn-sm btn-accent full-w" id="btn-auto-bpm">🥁 Auto BPM</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
   </div><!-- end editor-body -->
 
   <!-- Playback Bar -->
@@ -257,6 +312,7 @@
 <!-- Hidden inputs -->
 <input type="file" id="file-audio" accept=".ogg,.mp3,.wav,.flac,.m4a" style="display:none">
 <input type="file" id="file-import" accept=".js,.json" style="display:none">
+<input type="file" id="file-import-proj" accept=".ocproj,.json" style="display:none">
 <input type="file" id="file-icon-img" accept="image/*" style="display:none">
 
 <script src="app.js"></script>

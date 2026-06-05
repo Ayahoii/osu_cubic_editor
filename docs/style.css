@@ -136,6 +136,8 @@ body {
 .btn-accent:hover  { background: #1a2c4e; }
 .btn-danger  { background: #2a1414; border-color: #8a2a2a; color: var(--accent-red); }
 .btn-danger:hover  { background: #3a1e1e; }
+.btn-audio-loaded { border-color: #3a8a3a; color: var(--accent-green); }
+.btn-audio-loaded:hover { background: #1a2e1a; }
 .btn-sm { padding: 8px 14px; font-size: 13px; }
 .full-w { width: 100%; justify-content: center; }
 
@@ -187,6 +189,9 @@ select, .difficulty-select {
   border-radius: 2px;
   cursor: pointer;
 }
+#copy-target-select {
+  min-width: 90px;
+}
 .badge {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -201,6 +206,50 @@ select, .difficulty-select {
   gap: 5px;
   align-items: center;
   flex-shrink: 0;
+}
+.header-dropdown,
+.projects-dropdown {
+  position: relative;
+}
+.projects-dropdown {
+  flex: 1;
+}
+.projects-dropdown .dropdown-menu {
+  width: 100%;
+  top: calc(100% + 4px);
+  left: 0;
+  right: auto;
+}
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #0e0e20;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  min-width: 180px;
+  z-index: 500;
+  padding: 4px 0;
+  box-shadow: 0 6px 20px rgba(0,0,0,.6);
+}
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dropdown-item:hover { background: #1e1e38; color: var(--accent-cyan); }
+.dropdown-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
 }
 
 /* Editor Body */
@@ -241,11 +290,24 @@ select, .difficulty-select {
   flex-direction: column;
   transition: width 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
-#editor-body.expanded-grid #grid-panel {
-  width: 680px;
-}
 #editor-body.expanded-grid {
-  --cell-size: 48px;
+  --cell-size: 52px;
+}
+#editor-body.expanded-grid #grid-panel {
+  order: 2;
+  flex: 1;
+  width: auto;
+}
+#editor-body.expanded-grid #timeline-panel {
+  order: 1;
+  flex: 0 0 160px;
+  min-width: 0;
+}
+#editor-body.expanded-grid #info-panel {
+  order: 3;
+}
+#editor-body.expanded-grid .hint {
+  display: none;
 }
 #block-grid-wrap {
   flex: 1;
@@ -406,11 +468,50 @@ select, .difficulty-select {
 .info-tab.active { color: var(--accent-pink); border-bottom-color: var(--accent-pink); }
 
 #tab-note-content,
-#tab-meta-content {
+#tab-meta-content,
+#tab-tools-content {
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+}
+
+#tools-form {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.tool-section {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tool-section:last-child { border-bottom: none; }
+.tool-section-title {
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent-pink);
+}
+.tool-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tool-copy-row select { flex: 1; }
+.copy-arrow {
+  color: var(--muted);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.tool-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 #note-props-empty {
