@@ -1492,7 +1492,15 @@ function initEvents() {
   });
   document.getElementById('btn-auto-bpm').addEventListener('click', autoBpmDetect);
   document.getElementById('btn-save').addEventListener('click', saveProject);
-  document.getElementById('btn-export').addEventListener('click', exportJS);
+  // Export dropdown
+  const ddExportBtn  = document.getElementById('btn-export');
+  const ddExportMenu = document.getElementById('dd-export-menu');
+  ddExportBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    ddExportMenu.classList.toggle('hidden');
+  });
+  document.getElementById('dd-export-js').addEventListener('click', exportJS);
+  document.getElementById('dd-export-proj').addEventListener('click', exportProject);
   document.getElementById('btn-load-audio').addEventListener('click', () => {
     if (S.buf && !confirm('Replace the current audio?')) return;
     document.getElementById('file-audio').click();
@@ -1518,7 +1526,6 @@ function initEvents() {
   document.getElementById('dd-import-proj').addEventListener('click', () =>
     document.getElementById('file-import-proj').click()
   );
-  document.getElementById('dd-export-proj').addEventListener('click', exportProject);
 
   // File inputs
   document.getElementById('file-import').addEventListener('change', e => {
