@@ -12,20 +12,25 @@
 
 ## About
 
-**OSU Cubic Editor** is a tool that allows users to map custom songs for OSU Cubic, a Minecraft rhythm minigame. With this editor, you can create song mappings and export them as ready-to-import `.js` files directly into OSU Cubic.
+**OSU Cubic Editor** is a web-based tool for creating beatmaps for OSU Cubic, a Minecraft rhythm minigame. With this editor, you can visually place notes on a timeline, auto-detect BPM from your audio, and export your beatmap as a ready-to-import `.js` file — or save your full project as a `.ocproj` file to continue editing later.
 
 ## Features
 
-- Map custom songs visually
-- Export mappings as `.js` files ready for OSU Cubic
+- Visual timeline beatmap editor
+- Load audio and map notes to the beat
+- Auto BPM detection — marks every beat automatically
+- Multiple difficulty support (Easy / Normal / Hard / Expert)
+- Export beatmap as `.js` for OSU Cubic
+- Save and load full projects as `.ocproj` (includes embedded audio and cover art)
 - Runs entirely in the browser — no installation required
 
 ## Usage
 
 1. Open the [Live App](https://ayahoii.github.io/osu_cubic_editor/)
-2. Load your song and start mapping
-3. Export the generated `.js` mapping file
-4. Follow the steps below to install it in your OSU Cubic world
+2. Create a new project and load your song audio
+3. Map your notes on the timeline (use Auto BPM to help!)
+4. Export the generated `.js` beatmap file
+5. Follow the steps below to install it in your OSU Cubic world
 
 ---
 
